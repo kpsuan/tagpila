@@ -1,91 +1,94 @@
-import axios from "axios";
-import * as cheerio from 'cheerio';
-import { extractCurrency, extractDescription, extractPrice } from "../utils";
+"use server"
 
-export async function scrapedAmazonProduct(url:string) {
-    if(!url)return;
+import { revalidatePath } from "next/cache";
+import Product from "../models/product.model";
+import { connectToDB } from "../mongoose";
+import { getAveragePrice, getHighestPrice, getLowestPrice } from "../utils";
+import { User } from "@/types";
+import { scrapeAmazonProduct } from "@/scraper";
 
-    //brightdata config
-    //curl -i --proxy brd.superproxy.io:33335 --proxy-user brd-customer-hl_3a59e609-zone-tagpila:iv66u07opv56 -k "https://geo.brdtest.com/welcome.txt?product=unlocker&method=native"
-    const username = String (process.env.BRIGHT_DATA_USERNAME);
-    const password = String (process.env.BRIGHT_DATA_PASSWORD);
-    const port = 33335;
-    const session_id = (1000000 * Math.random()) | 0;
+export async function scrapeAndStoreProduct(productUrl: string) {
+  if(!productUrl) return;
 
-    const options = {
-        auth: {
-            username: `${username}-session-${session_id}`,
-            password,
-        },
+  try {
+    await connectToDB();
 
-        host: 'brd.superproxy.io',
-        port,
-        rejectUnauthorized: false,
+    const scrapedProduct = await scrapeAmazonProduct(productUrl);
+
+    if(!scrapedProduct) return;
+
+    let product = scrapedProduct;
+
+    const existingProduct = await Product.findOne({ url: scrapedProduct.url });
+
+    if(existingProduct) {
+      const updatedPriceHistory: any = [
+        ...existingProduct.priceHistory,
+        { price: scrapedProduct.currentPrice }
+      ]
+
+      product = {
+        ...scrapedProduct,
+        priceHistory: updatedPriceHistory,
+        lowestPrice: getLowestPrice(updatedPriceHistory),
+        highestPrice: getHighestPrice(updatedPriceHistory),
+        averagePrice: getAveragePrice(updatedPriceHistory),
+      }
     }
 
-    try {
-        //fetch product page
-        const response = await axios.get(url, options);
-        const $ = cheerio.load(response.data);
-       
-        //extract title
-        const title = $('#productTitle').text().trim();
-        
-        const wholePart = $('.a-price-whole').first().text().trim();
-        const fractionPart = $('.a-price-fraction').first().text().trim();
-        const price = `${wholePart}.${fractionPart}`;
+    const newProduct = await Product.findOneAndUpdate(
+      { url: scrapedProduct.url },
+      product,
+      { upsert: true, new: true }
+    );
 
-        const currentPrice = extractPrice(
-            $('.priceToPay span.a-price-whole'),
-            $('.a.size.small.a-color-secondary'),
-            $('.a-button-selected .a-color-base'),
-            $('.a-price.a-text-price'),
-        );
-
-        const originalPrice = extractPrice(
-            $('#priceblock_ourprice'),
-            $('.a-price.a-text-price span.a-offscreen'),
-            $('#listPrice'),
-            $('#priceblock_dealprice'),
-            $('.a-size-base.a-color-price')
-          );
-
-        const outOfStock = $('#availability span').text().trim().toLowerCase() === 'currently unavailable';
-
-        const images = 
-        $('#imgBlkFront').attr('data-a-dynamic-image') || 
-        $('#landingImage').attr('data-a-dynamic-image') ||
-        '{}'
-        const imageUrls = Object.keys(JSON.parse(images));
-
-        const currency = extractCurrency($('.a-price-symbol'))
-        const discountRate = $('.savingsPercentage').text().replace(/[-%]/g, "");
-
-        const description = extractDescription($)
-
-        const data = {
-            url,
-            currency: currency || '$',
-            image: imageUrls[0],
-            title,
-            currentPrice: Number(currentPrice) || Number(originalPrice),
-            originalPrice: Number(originalPrice) || Number(currentPrice),
-            priceHistory: [],
-            discountRate: Number(discountRate),
-            category: 'category',
-            reviewsCount:100,
-            stars: 4.5,
-            isOutOfStock: outOfStock,
-            description,
-            lowestPrice: Number(currentPrice) || Number(originalPrice),
-            highestPrice: Number(originalPrice) || Number(currentPrice),
-            averagePrice: Number(currentPrice) || Number(originalPrice),
-          }
-      
-
-        console.log(data);
-
-    } catch (error: any) {
-        throw new Error(`Failed to scrape product: ${error.message}`)
-    }
+    revalidatePath(`/products/${newProduct._id}`);
+  } catch (error: any) {
+    throw new Error(`Failed to create/update product: ${error.message}`)
+  }
 }
+
+export async function getProductById(productId: string) {
+  try {
+    connectToDB();
+
+    const product = await Product.findOne({ _id: productId });
+
+    if(!product) return null;
+
+    return product;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getAllProducts() {
+  try {
+    connectToDB();
+
+    const products = await Product.find();
+
+    return products;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export async function getSimilarProducts(productId: string) {
+  try {
+    connectToDB();
+
+    const currentProduct = await Product.findById(productId);
+
+    if(!currentProduct) return null;
+
+    const similarProducts = await Product.find({
+      _id: { $ne: productId },
+    }).limit(3);
+
+    return similarProducts;
+  } catch (error) {
+    console.log(error);
+  }
+}
+

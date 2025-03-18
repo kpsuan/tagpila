@@ -21,6 +21,7 @@ body {
 .containers{
   margin: 2rem;
   padding: 3rem;
+  padding-bottom: 0;
 }
 /* Utility classes */
 .btn {
@@ -28,11 +29,12 @@ body {
   padding-bottom: 1rem;
   padding-left: 1rem;
   padding-right: 1rem;
-  background-color: var(--secondary);
+  background-color: rgb(32, 32, 32);
   border-radius: 30px;
   color: white;
   font-size: 1.125rem;
   font-weight: 600;
+  margin-top: 1rem;
 }
 
 .btn:hover {
@@ -162,6 +164,7 @@ body {
   max-width: 100%;
   padding-top: 4rem;
   padding-bottom: 4rem;
+  padding-left: 3rem;
   border: 1px solid #CDDBFF;
   border-radius: 17px;
 }
@@ -229,14 +232,13 @@ body {
 }
 
 .dialog-content {
-  padding: 1.5rem;
+  padding: 2rem;
   background-color: white;
   display: inline-block;
   width: 100%;
   max-width: 28rem;
   margin-top: 2rem;
   margin-bottom: 2rem;
-  overflow: hidden;
   text-align: left;
   vertical-align: middle;
   transition-property: all;
@@ -251,6 +253,7 @@ body {
   line-height: 24px;
   font-weight: 600;
   margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 .dialog-input_container {
@@ -267,6 +270,7 @@ body {
 }
 
 .dialog-input {
+  z-index: 1;
   flex: 1 1 0%;
   padding-left: 0.25rem;
   border: none;
@@ -281,6 +285,7 @@ body {
 }
 
 .dialog-btn {
+  z-index: 1;
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 0.75rem;
@@ -289,7 +294,7 @@ body {
   font-size: 1rem;
   font-weight: 600;
   border: 1px solid var(--secondary);
-  background-color: var(--secondary);
+  background-color: rgb(19, 19, 19);
   border-radius: 0.5rem;
   margin-top: 2rem;
 }
@@ -326,9 +331,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border-left: 3px solid;
   border-radius: 10px;
-  background-color: var(--white-100);
+  background-color: rgb(235, 235, 235);
   padding-left: 1.25rem;
   padding-right: 1.25rem;
   padding-top: 1rem;
